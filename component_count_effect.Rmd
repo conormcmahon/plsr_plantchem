@@ -1,0 +1,93 @@
+---
+title: "Effect of Component Count"
+author: "Conor McMahon"
+date: "6/10/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width=9, fig.height=6, fig.align="center")
+
+library(tidyverse)
+```
+
+```{r}
+
+# List of Plant Traits to be Regressed
+chem_list <- c("Nitrogen_pct",
+               "Carbon_pct",
+               "Cellulose_pct",
+               "Lignin_pct",
+               "Water_Content_pct",
+               "LMA_gm2",
+               "Leaf_Thickness_mm")
+# List of numbers of components used
+comp_list = seq(7,177,5)
+
+# Data from Viper Computer
+load(here::here("data","ophelia","training_model_data","test_results.RData"))
+
+# Assemble information into data frame
+model_info <- data.frame(model_corrs = as.vector(model_corrs),
+                         validation_corrs = as.vector(validation_corrs),
+                         model_time_costs = as.vector(model_time_costs),
+                         plant_trait = rep(chem_list, 35),
+                         components = rep(comp_list, each=7))
+
+
+# --- Validation Correlations --- 
+validation_corrs_plot <- ggplot(data=model_info) + 
+  geom_line(aes(x=components, y=model_corrs, 
+                col="black")) + 
+  geom_line(aes(x=components, y=validation_corrs, 
+                col="red")) + 
+  theme(legend.position = "none",
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+      plot.caption = element_text(hjust = 0, size = 10),
+      axis.title.y = element_text(size = 12, face = "bold"),
+      axis.title.x = element_text(size = 12, face = "bold"),
+      panel.spacing = unit(0.05, "lines"),
+      panel.border = element_rect(color = "gray1", fill = NA, size = 1),
+      strip.background = element_rect(color = "gray1", size = 1)) +
+  ggtitle("Validation Correlation Values vs. PLSR Component Number") +
+  labs(caption = "PLSR model fit (black) and validation correlations (red) vs. number of components used. Model fit correlations generally increase \nup to an asymptote, while validation correlations may decline with high numbers of components due to overfitting.") + 
+  xlab("Number of PLSR Components") + 
+  ylab("Validation Correlation") + 
+  facet_wrap(~plant_trait)
+# --- Time Cost --- 
+time_costs_plot <- ggplot(data=model_info, aes(x=components, y=model_time_costs)) + 
+  geom_line(aes(col=plant_trait, group=plant_trait)) + 
+  theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        plot.caption = element_text(hjust = 0, size = 10),
+        axis.title.y = element_text(size = 12, face = "bold"),
+        axis.title.x = element_text(size = 12, face = "bold"),
+        panel.spacing = unit(0.05, "lines"),
+        panel.border = element_rect(color = "gray1", fill = NA, size = 1),
+        strip.background = element_rect(color = "gray1", size = 1)) +
+  ggtitle("Model Building Time vs. PLSR Component Number") +
+  labs(caption = "PLSR model time cost to build vs. number of components used.") + 
+  xlab("Number of PLSR Components") + 
+  ylab("Time Cost (seconds)")
+# --- Time Cost/Validation --- 
+validation_time_plot <- ggplot(data=model_info, aes(x=model_time_costs, y=validation_corrs)) + 
+  geom_line(aes(col=plant_trait)) + 
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+        plot.caption = element_text(hjust = 0, size = 10),
+        axis.title.y = element_text(size = 12, face = "bold"),
+        axis.title.x = element_text(size = 12, face = "bold"),
+        panel.spacing = unit(0.05, "lines"),
+        panel.border = element_rect(color = "gray1", fill = NA, size = 1),
+        strip.background = element_rect(color = "gray1", size = 1)) +
+  ggtitle("Validation Correlation vs. Model Building Time") +
+  labs(caption = "PLSR validation correlation vs. time to build model.") + 
+  xlab("Time Cost (seconds)") + 
+  ylab("Validation Correlation") + 
+  facet_wrap(~plant_trait)
+
+validation_corrs_plot
+time_costs_plot
+validation_time_plot
+
+```
+

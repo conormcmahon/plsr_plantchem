@@ -1,0 +1,127 @@
+---
+title: "Plant Chemistry PLSR - Meerdink Data"
+author: "Conor McMahon"
+date: "6/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width=12, fig.height=10)
+```
+
+```{r, include=FALSE}
+# -----------------------------------------------------------------------------
+# ---------------------------------- R Setup ----------------------------------
+
+library(here)
+library(gridExtra)
+
+# set working directory
+setwd(here::here())
+
+# PLSR Function
+source(here::here('plantchem_plsr.r'))
+```
+
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+
+We'll load the input data:
+
+```{r}
+# -----------------------------------------------------------------------------
+# ------------------------------ Load Input Data ------------------------------
+
+# read in plant chemistry information
+plantchem <- read.csv("HyspIRI_Ancillary_updatedLMA_colnames.csv")
+
+# read in AVIRIS convolved spectral information
+spectra <- read.csv("HyspIRI_Spectra_ASD_AVIRIS.csv")
+# first column is ID, next 224 columns are bands
+
+# Bad bands list
+bbl = c(
+  0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0)
+
+#####
+# Subset spectra, removes IDs and band bands
+spectra_sub <- spectra[, which(bbl == 1) + 1]
+
+# Get wavelengths (nm) from header
+wvl <- as.numeric(as.character(do.call(rbind.data.frame, strsplit(colnames(spectra_sub), "X"))[,2]))
+
+# List of Plant Traits to be Regressed
+chem_list <- c("Nitrogen_pct",
+               "Carbon_pct",
+               "Cellulose_pct",
+               "Lignin_pct",
+               "Water_Content_pct",
+               "LMA_gm2",
+               "Leaf_Thickness_mm")
+
+```
+
+
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+
+Next we build models for each physiological plant trait that we're interested in investigating, and figure out how many components are necessary. 
+
+```{r}
+
+# -----------------------------------------------------------------------------
+# ------------------------ Perform PLSR, Print Results ------------------------
+
+# Some input parameters:
+n_comps = 11                  # Number of PLSR components to be fit
+n_tiles = 4                   # Number of Quantiles to enforce even sampling of training data 
+train_frac = 0.8              # Fraction of labelled data to use in training (rest is for test)
+rand_seed = 14                # Seed to control random sampling of training data
+
+# Initialize Data Structures
+prediction_plots = list()
+residual_plots = list()
+r2_plots = list()
+coeff_plots = list()
+plsr_models = list()
+training_setup_costs = list()
+model_fit_costs = list()
+prediction_costs = list()
+
+# Iterate Over Plant Traits
+for (varname in chem_list)
+{
+  # Fit a model
+  model_info <- plsr_plantchem(plantchem, spectra_sub, varname, wvl, n_comps, n_tiles, train_frac, rand_seed)
+  # Print a Plot
+  prediction_plots = c(prediction_plots, model_info[[1]])
+  residual_plots = c(residual_plots, model_info[[2]])
+  r2_plots = c(r2_plots, model_info[[3]])
+  r2_plots = c(r2_plots, model_info[[4]])
+  plsr_models = c(plsr_models, model_info[[5]])
+  training_setup_costs = c(training_setup_costs, model_info[[7]][[1]])
+  model_fit_costs = c(model_fit_costs, model_info[[7]][[2]])
+  prediction_costs = c(prediction_costs, model_info[[7]][[3]])
+
+  # Print output graphs!
+  grid.arrange(model_info[[1]], model_info[[2]], model_info[[4]], model_info[[3]], ncol = 2)
+}
+
+
+
+```
+
